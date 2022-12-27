@@ -1,0 +1,40 @@
+
+            --ModeSQL Basic Test--
+--#1 between walgreens, mutual life, and UCH which one has the longest website url?
+select name, character_length(website) website_length
+from sqlchallenge1.accounts act
+where name ilike '%insurance%' or name ilike '%united%' or name ilike '%walgreen%';
+--United Continental Holdings has the longest website URL with 33 characters
+
+--How many sales reps have e's in their name?
+SELECT count(*)
+FROM sqlchallenge1.sales_reps
+where name ilike '%e%';
+--40 sales reps
+
+--what is the first account name alphabetically with an ampersand?
+SELECT *
+FROM sqlchallenge1.accounts
+where name ilike '%&%'
+order by name;
+--Air Products& Chemicals
+
+--what is the id of the sales rep who sold the last order in 2015? (without joins)
+--first find the last date there was an order in 2015
+SELECT *
+FROM sqlchallenge1.orders
+where date_part('year', "occurred_at")=2015 and date_part('month', "occurred_at") = 5
+order by orders.occurred_at desc;
+--then match id 1785 or 2351 to sales rep
+select *
+from sqlchallenge1.accounts
+where id = 1785 or id = 2351;
+--sales_rep_id = 321760
+
+-- How many sales_reps represent the northeast region?
+--northeast region_id = 1
+select count(distinct(id))
+from sqlchallenge1.sales_reps
+where region_id = 1;
+--21 total in northeast region
+
