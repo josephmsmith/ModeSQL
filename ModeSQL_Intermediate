@@ -1,0 +1,146 @@
+    --Intermediate SQL Tutorial and Practice-- 
+    --USING tutorial.aapl_historical_stock_price from MODESQL--
+
+SELECT * FROM tutorial.aapl_historical_stock_price;
+
+  --Write a query that determines counts of every single column. With these counts, can you tell which column has the most null values?
+SELECT count(*)
+FROM tutorial.aapl_historical_stock_price;
+ --3555 rows returned. Unfortunately, you can not tell which column has the most null values
+ 
+--Write a query to calculate the average opening price 
+SELECT count(*), sum(open)/count(*) avg_opening_price
+FROM tutorial.aapl_historical_stock_price;
+--avg= 164.1304
+
+--What was Apple's lowest stock price (at the time of this data collection)?
+SELECT min(close)
+from tutorial.aapl_historical_stock_price;
+--min price 6.56
+
+--What was the highest single-day increase in Apple's share value?
+select MAX(close - open)
+from tutorial.aapl_historical_stock_price;
+--32.58
+
+--Write a query that calculates the average daily trade volume for Apple stock.
+SELECT AVG(VOLUME) AS avg_volume
+FROM tutorial.aapl_historical_stock_price;
+--20745814.3454
+
+--Calculate the total number of shares traded each month. Order your results chronologically.
+select month, sum(volume) Monthly_Volume
+from tutorial.aapl_historical_stock_price
+group by month
+order by month;
+
+--Write a query to calculate the average daily price change in Apple stock, grouped by year.-- 
+SELECT year, avg(close-open) avg_pc
+FROM tutorial.aapl_historical_stock_price
+group BY year
+order by year, avg_pc;
+
+--Write a query that calculates the lowest and highest prices that Apple stock achieved each month.
+select year, month, min(close),max(close)
+from tutorial.aapl_historical_stock_price
+group by 2,1 order by 1,2;
+
+      -- switch over to benn.college_football_players
+--Write a query that includes a column that is flagged "yes" when a player is from California, and sort the results with those players first.
+SELECT *,
+  CASE WHEN state = 'CA' then 'yes'
+  else 'no' end as Californian_yn
+FROM benn.college_football_players
+order by Californian_yn DESC;
+
+--Write a query that includes players' names and a column that classifies them into four categories based on height.
+--Keep in mind that the answer we provide is only one of many possible answers, since you could divide players' heights in many ways.
+
+--first understand spread by getting min, max, median
+select min(height),max(height),avg(height)
+from benn.college_football_players;
+
+select 
+  CASE when height < 40 then 'too short'
+  when height between 40 and 60 then 'short'
+  when height between 60 and 80 then 'average'
+  else 'tall' end as height_rank, count(*)
+from benn.college_football_players
+group by height_rank;
+
+--Write a query that selects all columns from benn.college_football_players and adds an additional column that displays the player's name if that player is a junior or senior.
+select *,
+  case when year in ('JR','SR') then player_name
+  else null
+  end as name_if_jr_sr
+from benn.college_football_players;
+
+-- Write a query that counts the number of 300lb+ players for each of the following regions: 
+-- West Coast (CA, OR, WA), Texas, and Other (everywhere else).
+
+select 
+  case when state in ('CA', 'OR','WA') then 'West Coast'
+  when state like 'TX' then 'Texas'
+  else 'Other' END as Region, count(*) as num_of_300lbs_players
+FROM benn.college_football_players
+where weight >= 300
+group by Region
+order by 2;
+
+--Write a query that calculates the combined weight of all underclass players (FR/SO) in California as well
+--as the combined weight of all upperclass players (JR/SR) in California.
+
+select 
+  case when year in ('FR','SO') and state like 'CA' then 'ca_Underclass'
+  when year in ('JR','sr') and state like 'CA' then 'ca_Upperclass'
+  END as ca_class, sum(weight) class_Weight
+from benn.college_football_players
+group by ca_class;
+
+--Write a query that displays the number of players in each state, with FR, SO, JR, and SR players in separate columns and another column
+--for the total number of players. Order results such that states with the most players come first.
+
+select state,
+  COUNT(CASE WHEN YEAR LIKE 'FR' THEN 1 ELSE NULL END) AS FR_NUM,
+  COUNT(CASE WHEN YEAR LIKE 'SO' THEN 1 ELSE NULL END) AS SO_NUM,
+  COUNT(CASE WHEN YEAR LIKE 'JR' THEN 1 ELSE NULL END) AS JR_NUM,
+  COUNT(CASE WHEN YEAR LIKE 'SR' THEN 1 ELSE NULL END) AS SR_NUM,
+  COUNT(*) NUM_PLAYERS_TOTAL
+from benn.college_football_players
+GROUP BY STATE
+ORDER BY NUM_PLAYERS_TOTAL DESC;
+
+--Write a query that shows the number of players at schools with names that start with A through M, 
+--and the number at schools with names starting with N - Z. 
+
+select
+  case when player_name < 'n' then 'A-M'
+  when player_name >= 'N' then 'N-Z'
+  END as name_letter, count(*)
+from benn.college_football_players
+group by name_letter;
+
+--Write a query that returns the unique values in the year column, in chronological order.
+select distinct year 
+from tutorial.aapl_historical_stock_price
+order by year ASC;
+
+--Write a query that separately counts the number of unique values in the month column and the
+--number of unique values in the `year` column.
+
+select distinct month, year 
+from tutorial.aapl_historical_stock_price
+order by 2,1;
+
+--Write a query that selects the school name, player name, position, and weight for every player in Georgia, 
+--ordered by weight (heaviest to lightest). Be sure to make an alias for the table, and to reference all column names in relation to the alias.
+
+select p.full_school_name, p.player_name, p.position, p.weight
+from benn.college_football_players p;
+
+--Write a query that displays player names, school names and conferences for schools in the "FBS (Division I-A Teams)" division.
+select p.player_name, p.school_name, t.conference 
+from benn.college_football_players p 
+  JOIN benn.college_football_teams t 
+  on p.id = t.id 
+where t.division = 'FBS (Division I-A Teams)'
