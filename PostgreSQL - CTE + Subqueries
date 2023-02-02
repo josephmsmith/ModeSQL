@@ -90,3 +90,192 @@ FROM(
 	) T1
 GROUP BY 1
 ORDER BY 2
+
+SELECT O.SHIP_MODE,
+	COUNT(O.ORDER_ID)
+FROM ORDERS O
+JOIN RETURNS R USING(ORDER_ID)
+WHERE R.REASON_RETURNED ilike '%wrong item%'
+GROUP BY O.SHIP_MODE
+
+SELECT SHIP_MODE,
+	COUNT(*)
+FROM ORDERS
+WHERE ORDER_ID IN
+		(SELECT ORDER_ID
+			FROM RETURNS
+			WHERE REASON_RETURNED ilike '%wrong item%')
+GROUP BY SHIP_MODE;
+
+--EX 2 USING FROM STATEMENT WITH TRUNC()--
+--slide 15, sales for every month non-agg, month (as num), sales amount
+
+SELECT date_part('year', order_month) as year, avg(monthly_sales)::money as avg_monthly_sales
+FROM(
+	SELECT date_trunc('month', order_date)::date as order_month,
+		SUM(sales) as monthly_sales
+	FROM orders
+	GROUP BY 1
+) as T1
+group by 1
+order by 1 desc;
+
+--SOLO EXCERCISE ---
+--create query that classifies customer by purchase frequent and reports total sales per customer_id
+--then how much sales in each segment did they make? (Summarize categories into distinct groups with totals)
+
+SELECT CUSTOMER_TYPE,
+	SUM(TOTAL_SALES)::MONEY AS TOTAL_SALES
+FROM
+	(SELECT CUSTOMER_ID,
+			CASE
+							WHEN COUNT(DISTINCT ORDER_ID) >= 1000 THEN 'SUPPLIER'
+							WHEN COUNT(DISTINCT ORDER_ID) >= 100 THEN 'FREQUENT'
+							ELSE 'ALL OTHERS'
+			END AS CUSTOMER_TYPE,
+			SUM(SALES) AS TOTAL_SALES
+		FROM ORDERS
+		GROUP BY 1) AS T1
+GROUP BY 1
+ORDER BY 2 DESC;
+
+--how many orders had products with a cost of more than 500
+
+SELECT PRODUCT_ID
+FROM ORDERS
+WHERE PRODUCT_ID in
+		(SELECT PRODUCT_ID
+			FROM PRODUCTS
+			WHERE PRODUCT_COST_TO_CONSUMER > 500);
+			
+--find orders that had products with a cost of more than 500 using NOT IN
+
+SELECT COUNT(PRODUCT_ID)
+FROM ORDERS
+WHERE PRODUCT_ID NOT IN
+		(SELECT PRODUCT_ID
+					FROM PRODUCTS
+					WHERE PRODUCT_COST_TO_CONSUMER < 500);
+
+
+
+--HOW MANY ORDERS HAVE MORE PROFFIT THAN THE AVERAGE PRODUCT COST TO CONSUMER? 
+		
+SELECT COUNT(ORDER_ID) QTY_OVER_AVG_PRODUCT_CTC
+FROM ORDERS
+WHERE PROFIT >
+		(SELECT AVG(PRODUCT_COST_TO_CONSUMER)
+			FROM PRODUCTS);
+
+WITH T1 AS
+	(SELECT *
+		FROM ORDERS),
+	T2 AS
+	(SELECT *
+		FROM PRODUCTS)
+SELECT *
+FROM T1
+JOIN T2 USING(PRODUCT_ID)
+LIMIT 100;
+
+-- SAME AS
+
+SELECT *
+FROM ORDERS O
+JOIN PRODUCTS P USING (PRODUCT_ID)
+LIMIT 100;
+--------------
+--cross join statistics
+WITH SALES_AVG AS
+	(SELECT AVG(SALES)::MONEY AVG_SALES
+		FROM ORDERS),
+	SALES_MIN AS
+	(SELECT MIN(SALES)::MONEY MIN_SALES
+		FROM ORDERS)
+SELECT *
+FROM SALES_AVG
+CROSS JOIN SALES_MIN
+
+
+---------------
+--except join or type 2 subquery
+WITH T1 AS
+	(SELECT ORDER_ID
+		FROM RETURNS),
+	T2 AS
+	(SELECT *
+		FROM ORDERS
+		WHERE ORDER_ID not in
+				(SELECT *
+					FROM T1)
+		LIMIT 100)
+SELECT *
+FROM T2
+
+--------------
+--how has total(sales) of each segment changed over the years
+--subquery - segment and sum sales
+--total
+
+SELECT C.SEGMENT,
+	DATE_PART('years',
+
+		O.ORDER_DATE) AS YEAR,
+	SUM(O.SALES)::MONEY SUM_YEAR_2015
+FROM ORDERS O
+JOIN CUSTOMERS C USING(CUSTOMER_ID)--	where order_date::text ilike '%2015-%'
+
+GROUP BY 1, 2
+ORDER BY 1, 2;
+
+
+--------------
+--on average, what % of salespeople make a sale each month
+--avg(num_of_sp)
+-- num_of_sp, tot_sp, month
+
+SELECT D_MONTH,
+	ROUND(AVG(SALES_PPL),
+		2) AS PCT_SALESPERSONS_SELL_PER_MONTH
+FROM
+	(SELECT DATE_PART('year',
+
+										O.ORDER_DATE) D_YEAR,
+			DATE_PART('month',
+
+				O.ORDER_DATE)D_MONTH,
+			ROUND(COUNT(DISTINCT R.SALESPERSON)::numeric /
+										(SELECT COUNT(DISTINCT SALESPERSON)::numeric
+											FROM REGIONS),
+				2) SALES_PPL
+		FROM ORDERS O
+		LEFT JOIN REGIONS R USING(REGION_ID)
+		GROUP BY 1, 2) AS T1
+GROUP BY 1
+ORDER BY 1 DESC,
+	2 DESC;
+
+-------------
+--What percent of all sales in the United States were returned in 2020
+-----
+
+SELECT D_YEAR,
+	ROUND(COUNT(DISTINCT RETURNED)::numeric / COUNT(DISTINCT SOLD)::numeric,
+		3) PRCT_RETURNED_IN_2020
+FROM
+	(SELECT DATE_PART('year',
+
+										O.ORDER_DATE) D_YEAR,
+			O.ORDER_ID SOLD,
+			R.ORDER_ID RETURNED
+		FROM ORDERS O
+		LEFT JOIN RETURNS R USING(ORDER_ID)
+		WHERE DATE_PART('year',
+
+									O.ORDER_DATE) = 2020
+			AND REGION_ID in
+				(SELECT REGION_ID
+					FROM REGIONS
+					WHERE COUNTRY_CODE ilike '%us%')
+		ORDER BY RETURNED ASC) AS T1
+GROUP BY 1;
