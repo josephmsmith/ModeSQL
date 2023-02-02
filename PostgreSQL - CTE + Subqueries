@@ -1,0 +1,92 @@
+-- Date Manipulation with Sales Reporting
+
+/* Q1: What will be the difference in the results between
+the following two lines of code. You can test them against the
+GA superstore database. */
+
+
+SELECT DATE_PART('month',ORDER_DATE)::numeric
+FROM ORDERS;
+
+
+SELECT EXTRACT(MONTH FROM ORDER_DATE)
+FROM ORDERS;
+
+select age(order_date),
+    DATE_PART('month', order_date) as order_month,
+	DATE_TRUNC('month', order_date) as order_month,
+	EXTRACT(month from order_date) as extracted_month_number
+from orders
+
+-- the first example takes slightly more compute to run the program v the second. The first query comes
+--as a numeric v the second one which results in double-precision
+
+/* Q2:  If you wished to have the Month Names (like, December) 
+in output where the data table only a had date stamp (timestamp or full date)
+what are some options that come to mind?  */
+
+SELECT ORDER_ID,
+	TO_CHAR(ORDER_DATE,'Mon') AS MON
+FROM ORDERS
+LIMIT 100;
+
+SELECT 
+  to_char(current_timestamp, 'mon') AS "mon",
+  to_char(current_timestamp, 'Mon') AS "Mon",
+  to_char(current_timestamp, 'MON') AS "MON",
+  to_char(current_timestamp, 'MONTH') AS "MONTH",
+  to_char(current_timestamp, 'Month') AS "Month";
+
+/*Q3: Write a query that returns Superstore sales 
+summed AND separated by year (column 1) and month (separate column), 
+showing the numeric month number (column 2) alongside the month name (column 3).
+Format the summed sales as currency (column 4). 
+Sort in chronological order. */
+
+
+SELECT EXTRACT(YEAR FROM ORDER_DATE),
+	EXTRACT(MONTH FROM ORDER_DATE),
+	TO_CHAR(ORDER_DATE,'Mon') AS MON, 
+	SUM(SALES)
+FROM ORDERS
+GROUP BY 1,2,3
+ORDER BY 1,2
+LIMIT 10
+
+
+/* Q4: Sales Management has requested a report that shows the 
+Average Sales by Quarter. They've specifically requested that
+the calculation of average monthly sales be used. You will need 
+to create a temporary table or subquery that calculates the 
+monthly averages before calculating the quarterly average.
+This method creates an average less influenced by daily highs and lows.
+*/
+
+select extract('year' from order_month),
+	extract(quarter from order_month) quarter, 
+	round(avg(avg_msales),2)::money avg_qsales
+from(
+	select date_trunc('month', order_date) order_month, round(avg(sales),2) avg_msales
+	from orders
+	group by 1
+	) t1
+group by 1,2
+order by 1,2
+
+
+/* Q5: Sales Execs are now asking for a "Discrete" view of the
+quarterly sales, that is a consolidation of all the years.
+What do you need to change about the last query to provide 
+those results? Present the output showing most to least
+sales volume. */
+
+SELECT EXTRACT(QUARTER FROM ORDER_MONTH) QUARTER,
+	ROUND(AVG(AVG_MSALES),2)::MONEY AVG_QSALES
+FROM(
+	SELECT DATE_TRUNC('month', ORDER_DATE) ORDER_MONTH,
+			ROUND(AVG(SALES),2) AVG_MSALES
+	 FROM ORDERS
+	 GROUP BY 1
+	) T1
+GROUP BY 1
+ORDER BY 2
